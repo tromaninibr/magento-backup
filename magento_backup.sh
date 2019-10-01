@@ -3,9 +3,10 @@
 #@author    Holger Lösken <holger.loesken@codedge.de>
  
 # Configuration
-projectName=MyProject
+projectName=YourProjectName
 currentDir="$(pwd)"
 backupDir="$currentDir/var/backups"
+start_time=$(date +%s)
 
 # The user and pass are stored in ~/.netrc on the web server
 ftp_backup_host="11.22.33.44"
@@ -72,7 +73,7 @@ backupType=$t
 skipMedia=$m
 makeFtpBackup=$b
 
-fileName=$projectName-$(date +"%Y-%m-%d")
+fileName=$projectName-$(date +"%m-%d-%Y")
 
 
 if [ "$backupType" == "database" ] || [ "$backupType" == "basesystem" ]; then
@@ -88,10 +89,10 @@ if [ "$backupType" == "files" ] || [ "$backupType" == "basesystem" ]; then
 
     if [ $skipMedia == 1 ]; then
         echo " -> Skipping media files (media directory)"
-        tar -zcf $fileName.tar.gz --exclude=var --exclude=includes --exclude=media * .htaccess
+        tar -zcf $fileName.tar.gz --exclude=var --exclude=includes --exclude=media --exclude=tmp --exclude=cache * .htaccess
     else
         echo " -> Include media files (media directory)"
-        tar -zcf $fileName.tar.gz --exclude=var --exclude=includes * .htaccess
+        tar -zcf $fileName.tar.gz --exclude=var --exclude=includes --exclude=tmp --exclude=cache * .htaccess
     fi
     echo "Done!"
     echo "----------------------------------------------------"
@@ -107,13 +108,20 @@ if [ "$backupType" == "database" ] || [ "$backupType" == "files" ] || [ "$backup
         echo "----------------------------------------------------"
     fi
 
-    echo "Moving file to backup dir $backupDir..."
-    if [ "$backupType" == "database" ] || [ "$backupType" == "basesystem" ]; then
+    if [ "$backupType" == "basesystem" ]; then
+        echo "Removing Database Backup (included in BaseSystem backup) from FileSystem..."
+        echo " -> $fileName.sql.gz"
+        rm -f $fileName.sql.gz
+    fi
+
+    if [ "$backupType" == "database" ]; then
+        echo "Moving file to backup dir $backupDir..."
         echo " -> $fileName.sql.gz"
         mv $fileName.sql.gz $backupDir
     fi
- 
+    
     if [ "$backupType" == "files" ] || [ "$backupType" == "basesystem" ]; then
+        echo "Moving file to backup dir $backupDir..."
         echo " -> $fileName.tar.gz"
         mv $fileName.tar.gz $backupDir
     fi
@@ -143,3 +151,7 @@ if [ "$makeFtpBackup" == "1" ]; then
     echo "Done!"
     echo "----------------------------------------------------"
 fi
+
+finish_time=$(date +%s)
+diffsec="$(expr $finish_time - $start_time)"
+echo | awk -v D=$diffsec '{printf "Elapsed time: %02d:%02d:%02d\n",D/(60*60),D%(60*60)/60,D%60}'
